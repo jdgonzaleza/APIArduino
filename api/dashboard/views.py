@@ -153,6 +153,7 @@ def recursos(request):
         data = JSONParser().parse(request)
         idRecurso = int((time.time()*1000) % 86400000)
         data['idRecurso']= idRecurso
+        data['medidas'] = []
         result = recursos.insert(data)
         respo = {
             "MongoObjectID": str(result),
@@ -168,9 +169,9 @@ def recursosDetail(request, pk):
         client = MongoClient(settings.HOSTARDU, int(settings.PORTARDU))
         db = client["api_arduino"]
         db.authenticate(settings.USERARDU, settings.PASS)
-        recursos = db['canales']
+        recursos = db['recursos']
         data = recursos.find({"idRecurso": int(pk)})
-        jsonData={"holaaa": "asdd"}
+        jsonData={}
         for dto in data:
             jsonData ={
                 "idRecurso": int(pk),
@@ -182,20 +183,48 @@ def recursosDetail(request, pk):
             }   
             result.append(jsonData)
         client.close()
-        return JsonResponse(jsonData, safe=False)
+        return JsonResponse(result[0], safe=False)
 
 
-@api_view(["POST"])
-def registrarMedida(request, pk):
+@api_view(["POST", "GET"])
+def medidas(request, pk):
     if request.method == "POST":
         client = MongoClient(settings.HOSTARDU, int(settings.PORTARDU))
         db = client["api_arduino"]
         db.authenticate(settings.USERARDU, settings.PASS)
         recursos = db['recursos']
+        data = JSONParser().parse(request)
+        elTiempo = time.gmtime()
+        laFecha = time.strftime("%Y-%m-%d %H:%M:%S",elTiempo)
+        data["fecha"] = laFecha
+        result = recursos.update(
+            {"idRecurso": int(pk)},
+            {"$push":{"medidas": data} } 
+        )
+
+        respo = {
+            "MongoObjectID": str(result),
+            "Mensaje": "Se añadió una nueva medida"
+        }
+        client.close()
+        return JsonResponse(respo, safe=False)
+    if request.method == "GET":
+        result = []
+        client = MongoClient(settings.HOSTARDU, int(settings.PORTARDU))
+        db = client["api_arduino"]
+        db.authenticate(settings.USERARDU, settings.PASS)
+        recursos = db['recursos']
+        data = recursos.find({"idRecurso": int(pk)})
+        for dto in data:
+            jsonData = {
+                "medidas": dto["medidas"]
+            } 
+            result.append(jsonData)
+        client.close()
+        return JsonResponse(jsonData, safe=False)
 
 
 
-        
 
 
 
